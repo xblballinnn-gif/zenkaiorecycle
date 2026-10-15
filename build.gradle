@@ -1,0 +1,10 @@
+plugins { id 'eclipse'; id 'maven-publish'; id 'net.minecraftforge.gradle' version '[6.0,6.2)' }
+group = 'com.zenkaiorecycle'
+version = '0.1.0'
+base { archivesName = 'zenkaiorecycle' }
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+minecraft {
+ mappings channel: 'official', version: '1.20.2'
+ runs { configureEach { workingDirectory project.file('run'); mods { zenkaiorecycle { source sourceSets.main } } }; client {} }
+}
+dependencies { minecraft 'net.minecraftforge:forge:1.20.2-48.1.0' }
