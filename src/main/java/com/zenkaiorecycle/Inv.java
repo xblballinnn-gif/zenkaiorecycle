@@ -14,44 +14,66 @@ import net.minecraftforge.fml.ModList;
 
 import java.util.Set;
 
-/** Helpers shared by the loop. Hotbar slots 1-3 (indices 0-2) are protected. */
+/** Small helpers shared by the loop. Hotbar slot 0 (the pickaxe) is never touched. */
 final class Inv {
-    static final int FIRST_FREE_INDEX = 3;
-    private static final Set<Item> JUNK = Set.of(
-            Items.COBBLESTONE, Items.COBBLED_DEEPSLATE, Items.STONE, Items.DEEPSLATE, Items.DIRT, Items.GRAVEL,
-            Items.ANDESITE, Items.DIORITE, Items.GRANITE, Items.TUFF, Items.NETHERRACK, Items.SAND, Items.RED_SAND,
-            Items.ROTTEN_FLESH, Items.BONE, Items.STRING, Items.SPIDER_EYE, Items.GUNPOWDER, Items.ARROW, Items.FLINT);
+    /** First inventory index (0-8 hotbar, 9-35 main) that the loop may fill or empty. */
+    static final int FIRST_FREE_INDEX = 1;
 
-    private Inv() {}
+    /** The only things allowed in slots 1-35. Everything else is dropped. */
+    private static final Set<Item> KEEP = Set.of(
+            Items.RAW_GOLD, Items.COAL, Items.RAW_GOLD_BLOCK, Items.COAL_BLOCK, Items.NETHERITE_PICKAXE);
+
+    private Inv() {
+    }
 
     static int emptySlots(LocalPlayer p) {
         int n = 0;
-        for (int i = FIRST_FREE_INDEX; i <= 35; i++) if (p.getInventory().items.get(i).isEmpty()) n++;
+        for (int i = FIRST_FREE_INDEX; i <= 35; i++) {
+            if (p.getInventory().items.get(i).isEmpty()) {
+                n++;
+            }
+        }
         return n;
     }
 
+    /** True when no empty slot is left and every stack of this ore is full, so nothing more can be picked up. */
     static boolean fullOfOre(LocalPlayer p, Item ore) {
-        if (emptySlots(p) > 0) return false;
+        if (emptySlots(p) > 0) {
+            return false;
+        }
         for (int i = FIRST_FREE_INDEX; i <= 35; i++) {
             ItemStack s = p.getInventory().items.get(i);
-            if (s.is(ore) && s.getCount() < s.getMaxStackSize()) return false;
+            if (s.is(ore) && s.getCount() < s.getMaxStackSize()) {
+                return false;
+            }
         }
         return true;
     }
 
+    /** Slot id in the player inventory menu for an inventory index (hotbar is 36-44 there). */
     static int menuSlot(int index) {
         return index < 9 ? 36 + index : index;
     }
 
-    static void dropJunk(Minecraft mc) {
+    /**
+     * Drops every stack in slots 1-35 (the ore area) that is not raw gold, coal or their blocks.
+     * Hotbar slot 0 (the pickaxe) is never touched. Returns how many stacks were dropped.
+     */
+    static int dropUnwanted(Minecraft mc) {
         LocalPlayer p = mc.player;
-        if (p == null || mc.gameMode == null || mc.screen != null) return;
+        if (p == null || mc.gameMode == null || mc.screen != null) {
+            return 0;
+        }
+        int dropped = 0;
         for (int i = FIRST_FREE_INDEX; i <= 35; i++) {
             ItemStack s = p.getInventory().items.get(i);
-            if (!s.isEmpty() && JUNK.contains(s.getItem())) {
+            if (!s.isEmpty() && !KEEP.contains(s.getItem())) {
+                // button 1 with THROW drops the whole stack
                 mc.gameMode.handleInventoryMouseClick(p.inventoryMenu.containerId, menuSlot(i), 1, ClickType.THROW, p);
+                dropped++;
             }
         }
+        return dropped;
     }
 
     static void click(Minecraft mc, AbstractContainerMenu menu, int slot, int button, ClickType type) {
@@ -60,7 +82,9 @@ final class Inv {
 
     static void aimAt(LocalPlayer p, Vec3 point) {
         Vec3 eye = p.getEyePosition();
-        double dx = point.x - eye.x, dy = point.y - eye.y, dz = point.z - eye.z;
+        double dx = point.x - eye.x;
+        double dy = point.y - eye.y;
+        double dz = point.z - eye.z;
         double horizontal = Math.sqrt(dx * dx + dz * dz);
         float pitch = (float) (-(Mth.atan2(dy, horizontal) * 180.0 / Math.PI));
         p.setXRot(pitch);
@@ -72,20 +96,31 @@ final class Inv {
         }
     }
 
+    /** Sends a chat line (Baritone picks up lines that start with #). */
     static void chat(Minecraft mc, String line) {
-        if (mc.player != null) mc.player.connection.sendChat(line);
+        if (mc.player != null) {
+            mc.player.connection.sendChat(line);
+        }
     }
 
+    /** Runs a server command, given without the leading slash. */
     static void command(Minecraft mc, String name) {
-        if (mc.player != null) mc.player.connection.sendCommand(name);
+        if (mc.player != null) {
+            mc.player.connection.sendCommand(name);
+        }
     }
 
     static void tell(Minecraft mc, String message) {
-        if (mc.player != null) mc.player.displayClientMessage(Component.literal("[Zenkai Ore Cycle] " + message), false);
+        if (mc.player != null) {
+            mc.player.displayClientMessage(Component.literal("[Zenkai Ore Cycle] " + message), false);
+        }
     }
 
+    /** Best-effort check so "#mine ..." is never posted to public chat when Baritone is missing. */
     static boolean baritoneLooksInstalled() {
-        if (ModList.get().isLoaded("baritone")) return true;
+        if (ModList.get().isLoaded("baritone")) {
+            return true;
+        }
         try {
             Class.forName("baritone.api.BaritoneAPI", false, Inv.class.getClassLoader());
             return true;
