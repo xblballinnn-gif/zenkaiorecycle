@@ -1,58 +1,86 @@
 package com.zenkaiorecycle;
 
+import com.mojang.blaze3d.platform.InputConstants;
+import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.network.chat.Component;
+import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.inventory.ClickType;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
 import org.lwjgl.glfw.GLFW;
+
 import java.util.Locale;
 
+/**
+ * Key handling. Z starts/stops the gold-coal loop (see {@link CycleRunner}), X stops it and sends Baritone's #stop,
+ * C drops unwanted main-inventory stacks. Keys are real key bindings, so they do not fire while chat or a menu is open.
+ */
 public final class CycleController {
- private static final Minecraft MC = Minecraft.getInstance();
- private static final int START_KEY=GLFW.GLFW_KEY_K, STOP_KEY=GLFW.GLFW_KEY_J, CLEAN_KEY=GLFW.GLFW_KEY_H;
- private static boolean active=false, goldNext=false, startWasDown=false, stopWasDown=false, cleanWasDown=false;
- private static long lastActionTick=0;
- private static final long ROTATE_TICKS=20L*60L*10L;
+    static final KeyMapping START_KEY = new KeyMapping(
+            "key.zenkaiorecycle.start", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_Z, "key.categories.zenkaiorecycle");
+    static final KeyMapping STOP_KEY = new KeyMapping(
+            "key.zenkaiorecycle.stop", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_X, "key.categories.zenkaiorecycle");
+    static final KeyMapping CLEAN_KEY = new KeyMapping(
+            "key.zenkaiorecycle.clean", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_C, "key.categories.zenkaiorecycle");
 
- @SubscribeEvent public void onClientTick(TickEvent.ClientTickEvent e) {
-  if(e.phase!=TickEvent.Phase.END || MC.player==null || MC.level==null) return;
-  long tick=MC.level.getGameTime();
-  boolean s=down(START_KEY), x=down(STOP_KEY), c=down(CLEAN_KEY);
-  if(s&&!startWasDown) start();
-  if(x&&!stopWasDown) stop();
-  if(c&&!cleanWasDown) cleanInventory();
-  startWasDown=s; stopWasDown=x; cleanWasDown=c;
-  if(active && tick-lastActionTick>=ROTATE_TICKS) {
-   goldNext=!goldNext; mine(goldNext); lastActionTick=tick;
-   tell("Target rotated to "+(goldNext?"gold":"coal")+". This is timer-based; verify storage manually.");
-  }
- }
- private static boolean down(int key) { return MC.getWindow()!=null && GLFW.glfwGetKey(MC.getWindow().getWindow(),key)==GLFW.GLFW_PRESS; }
- private static void start() { active=true; lastActionTick=MC.level.getGameTime(); mine(goldNext); tell("Started. K=start, J=stop, H=drop unwanted main-inventory items."); }
- private static void stop() { active=false; chat("#stop"); tell("Cycle stopped."); }
- private static void mine(boolean gold) { chat(gold ? "#mine gold_ore deepslate_gold_ore" : "#mine coal_ore deepslate_coal_ore"); }
- private static void chat(String command) { LocalPlayer p=MC.player; if(p!=null) p.connection.sendChat(command); }
- private static void cleanInventory() {
-  if(MC.player==null||MC.gameMode==null) return;
-  // Player inventory menu slot ids 9-35 are main inventory. Hotbar is intentionally untouched.
-  for(int slot=9;slot<=35;slot++) {
-   ItemStack st=MC.player.getInventory().items.get(slot);
-   if(!st.isEmpty()&&!allowed(st.getItem()))
-    MC.gameMode.handleInventoryMouseClick(MC.player.inventoryMenu.containerId,slot,1,ClickType.THROW,MC.player);
-  }
-  tell("Cleanup attempted. Main inventory scanned; hotbar untouched to protect held items.");
- }
- private static boolean allowed(Item i) {
-  String id=i.getDescriptionId().toLowerCase(Locale.ROOT);
-  return i==Items.COAL || i==Items.COAL_ORE || i==Items.DEEPSLATE_COAL_ORE ||
-   i==Items.GOLD_INGOT || i==Items.RAW_GOLD || i==Items.GOLD_ORE || i==Items.DEEPSLATE_GOLD_ORE ||
-   i==Items.GOLD_BLOCK || i==Items.COAL_BLOCK || i==Items.CRAFTING_TABLE ||
-   i==Items.NETHERITE_PICKAXE || i==Items.DIAMOND_PICKAXE || id.contains("senzu");
- }
- private static void tell(String m) { if(MC.player!=null) MC.player.displayClientMessage(Component.literal("[Zenkai Ore Cycle] "+m),false); }
+    static {
+        Config.load();
+    }
+
+    private CycleController() {}
+
+    @Mod.EventBusSubscriber(modid = ZenkaiOreCycle.MOD_ID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
+    public static class ModBusEvents {
+        @SubscribeEvent
+        public static void onRegisterKeys(RegisterKeyMappingsEvent event) {
+            event.register(START_KEY);
+            event.register(STOP_KEY);
+            event.register(CLEAN_KEY);
+        }
+    }
+
+    @Mod.EventBusSubscriber(modid = ZenkaiOreCycle.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
+    public static class ForgeBusEvents {
+        @SubscribeEvent
+        public static void onClientTick(TickEvent.ClientTickEvent event) {
+            if (event.phase == TickEvent.Phase.END) tick(Minecraft.getInstance());
+        }
+    }
+
+    private static void tick(Minecraft mc) {
+        CycleRunner.tick(mc);
+        if (mc.player == null || mc.level == null) return;
+        while (START_KEY.consumeClick()) CycleRunner.toggle(mc);
+        while (STOP_KEY.consumeClick()) CycleRunner.stop(mc, "Stopped.");
+        while (CLEAN_KEY.consumeClick()) cleanInventory(mc);
+    }
+
+    private static void cleanInventory(Minecraft mc) {
+        if (mc.player == null || mc.gameMode == null || mc.screen != null) return;
+        int dropped = 0;
+        for (int slot = 9; slot <= 35; slot++) {
+            ItemStack stack = mc.player.getInventory().items.get(slot);
+            if (!stack.isEmpty() && !allowed(stack.getItem())) {
+                mc.gameMode.handleInventoryMouseClick(mc.player.inventoryMenu.containerId, slot, 1, ClickType.THROW, mc.player);
+                dropped++;
+            }
+        }
+        Inv.tell(mc, "Cleanup: dropped " + dropped + " stack(s). Hotbar untouched.");
+    }
+
+    private static boolean allowed(Item item) {
+        String id = item.getDescriptionId().toLowerCase(Locale.ROOT);
+        return item == Items.COAL || item == Items.COAL_ORE || item == Items.DEEPSLATE_COAL_ORE
+                || item == Items.GOLD_INGOT || item == Items.RAW_GOLD
+                || item == Items.GOLD_ORE || item == Items.DEEPSLATE_GOLD_ORE
+                || item == Items.GOLD_BLOCK || item == Items.RAW_GOLD_BLOCK || item == Items.COAL_BLOCK
+                || item == Items.CRAFTING_TABLE
+                || item == Items.NETHERITE_PICKAXE || item == Items.DIAMOND_PICKAXE || item == Items.DIAMOND_AXE
+                || id.contains("senzu");
+    }
 }
