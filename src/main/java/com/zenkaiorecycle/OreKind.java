@@ -6,7 +6,7 @@ import net.minecraft.world.item.Items;
 
 /** The two things the loop mines, what they craft into, and which vault they go in. */
 enum OreKind {
-    // Vault chest slots in the 3-row Personal Vaults menu: first two chests are slots 10 and 11.
+    // vaultSlot: slot in the 3-row "Personal Vaults" menu. The chests sit in the middle row, slots 10 and 11 are the first two.
     GOLD("gold", Items.RAW_GOLD, Items.RAW_GOLD_BLOCK, "raw_gold_block", 11, "vault #2"),
     COAL("coal", Items.COAL, Items.COAL_BLOCK, "coal_block", 10, "vault #1");
 
