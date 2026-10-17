@@ -18,7 +18,8 @@ final class Config {
     static String mineCoal = "#mine coal_ore deepslate_coal_ore";
     static String stopCommand = "#stop";
 
-    private Config() {}
+    private Config() {
+    }
 
     static void load() {
         Path path = FMLPaths.CONFIGDIR.get().resolve("zenkaiorecycle.properties");
@@ -31,9 +32,13 @@ final class Config {
             }
         }
         vaultCommand = p.getProperty("vault_command", vaultCommand).trim();
-        if (vaultCommand.startsWith("/")) vaultCommand = vaultCommand.substring(1);
+        if (vaultCommand.startsWith("/")) {
+            vaultCommand = vaultCommand.substring(1);
+        }
         craftCommand = p.getProperty("craft_command", craftCommand).trim();
-        if (craftCommand.startsWith("/")) craftCommand = craftCommand.substring(1);
+        if (craftCommand.startsWith("/")) {
+            craftCommand = craftCommand.substring(1);
+        }
         mineGold = p.getProperty("mine_gold_command", mineGold).trim();
         mineCoal = p.getProperty("mine_coal_command", mineCoal).trim();
         stopCommand = p.getProperty("stop_command", stopCommand).trim();
