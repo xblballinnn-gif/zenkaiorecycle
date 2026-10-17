@@ -1,8 +1,10 @@
 package com.zenkaiorecycle;
+
 import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.common.MinecraftForge;
+
+/** Client-side helper for the Zenkai coal/gold cycle. */
 @Mod(ZenkaiOreCycle.MOD_ID)
 public class ZenkaiOreCycle {
- public static final String MOD_ID = "zenkaiorecycle";
- public ZenkaiOreCycle() { MinecraftForge.EVENT_BUS.register(new CycleController()); }
+    public static final String MOD_ID = "zenkaiorecycle";
+    public ZenkaiOreCycle() {}
 }
