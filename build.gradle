@@ -1,10 +1,51 @@
-plugins { id 'eclipse'; id 'maven-publish'; id 'net.minecraftforge.gradle' version '[6.0,6.2)' }
-group = 'com.zenkaiorecycle'
-version = '0.1.0'
-base { archivesName = 'zenkaiorecycle' }
-java.toolchain.languageVersion = JavaLanguageVersion.of(17)
-minecraft {
- mappings channel: 'official', version: '1.20.2'
- runs { configureEach { workingDirectory project.file('run'); mods { zenkaiorecycle { source sourceSets.main } } }; client {} }
+plugins {
+    id 'eclipse'
+    id 'idea'
+    id 'net.minecraftforge.gradle' version '[6.0,6.2)'
 }
-dependencies { minecraft 'net.minecraftforge:forge:1.20.2-48.1.0' }
+
+version = mod_version
+group = 'com.zenkaiorecycle'
+
+base {
+    archivesName = mod_id
+}
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+
+minecraft {
+    mappings channel: mapping_channel, version: mapping_version
+
+    runs {
+        client {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+            mods {
+                "${mod_id}" {
+                    source sourceSets.main
+                }
+            }
+        }
+    }
+}
+
+dependencies {
+    minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
+}
+
+tasks.named('jar', Jar).configure {
+    manifest {
+        attributes([
+            'Specification-Title'     : mod_id,
+            'Specification-Version'   : '1',
+            'Implementation-Title'    : project.name,
+            'Implementation-Version'  : project.jar.archiveVersion
+        ])
+    }
+    finalizedBy 'reobfJar'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
