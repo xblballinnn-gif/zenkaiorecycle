@@ -6,17 +6,19 @@ Minecraft 1.20.2, Forge 48.1.0, Java 17. Client-side only. Requires Baritone (se
 1. Baritone mines (`#mine gold_ore deepslate_gold_ore` or the coal version).
 2. When no more ore fits in the inventory it sends `#stop`.
 3. `/craft` opens a crafting screen. Ore is crafted into raw gold blocks / coal blocks, keeping a reserve of at least 45 ore.
-4. `/vault` opens Personal Vaults. Gold blocks + reserve go in Vault #2, coal blocks + reserve go in Vault #1. The screen is closed.
+4. `/vault` opens Personal Vaults. Gold blocks + reserve go in Vault #2, coal blocks + reserve in Vault #1. The screen is closed.
 5. It switches to the other ore and goes back to step 1.
 
-Hotbar slots 1-3 (pickaxe, senzu beans, crafting tables) are never moved, mined into or dropped.
-While mining, common junk (cobble, stone, dirt, gravel, rotten flesh, bones...) is dropped every 5 seconds so it cannot fill the inventory.
+Hotbar slot 1 (the pickaxe) is never moved or dropped. Slots 2-36 are for ore only.
+While mining, the ore is spread over the empty slots (one item each, taken from the biggest stack) so there is no empty slot
+left for cobblestone, iron or anything else to be picked up into. Anything that is not raw gold, coal or their blocks is
+dropped every second anyway, and once more right after the vault closes.
 If the ore count does not grow for 2 minutes, the mine command is sent again.
 
 ## Keys (rebind under Options > Controls > Zenkai Ore Cycle)
 - **Z** start / stop the loop
 - **X** stop everything and send `#stop`
-- **C** drop every non-allowlisted stack in the main inventory (manual cleanup)
+- **C** drop everything in slots 2-36 except raw gold, coal and their blocks (same rule as above, on demand)
 
 Keys do nothing while chat or a menu is open.
 
